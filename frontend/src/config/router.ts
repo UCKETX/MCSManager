@@ -16,12 +16,12 @@ export interface RouterMetaInfo {
   mainMenu?: boolean;
   permission?: number;
   redirect?:
-    | string
-    | ((
-        userInfo: LoginUserInfo | undefined,
-        to: RouteLocationNormalized,
-        from: RouteLocationNormalized
-      ) => string);
+  | string
+  | ((
+    userInfo: LoginUserInfo | undefined,
+    to: RouteLocationNormalized,
+    from: RouteLocationNormalized
+  ) => string);
   onlyDisplayEditMode?: boolean;
   customClass?: string[];
   condition?: () => boolean;
@@ -40,12 +40,12 @@ export interface RouterConfig {
   children?: RouterConfig[];
   meta: RouterMetaInfo;
   redirect?:
-    | string
-    | ((
-        userInfo: LoginUserInfo,
-        to: RouteLocationNormalized,
-        from: RouteLocationNormalized
-      ) => string);
+  | string
+  | ((
+    userInfo: LoginUserInfo,
+    to: RouteLocationNormalized,
+    from: RouteLocationNormalized
+  ) => string);
 }
 
 export enum ROLE {
@@ -130,6 +130,14 @@ const originRouterConfig: RouterConfig[] = [
             }
           },
           {
+            path: `/instances/terminal/vscode`,
+            name: "VSCode编辑器",
+            component: LayoutContainer,
+            meta: {
+              permission: ROLE.USER
+            }
+          },
+          {
             path: `/instances/terminal/serverConfig`,
             name: t("TXT_CODE_d07742fe"),
             component: LayoutContainer,
@@ -140,6 +148,14 @@ const originRouterConfig: RouterConfig[] = [
               {
                 path: `/instances/terminal/serverConfig/fileEdit`,
                 name: t("TXT_CODE_78019c60"),
+                component: LayoutContainer,
+                meta: {
+                  permission: ROLE.USER
+                }
+              },
+              {
+                path: `/instances/terminal/serverConfig/vscode`,
+                name: "VSCodeEditor",
                 component: LayoutContainer,
                 meta: {
                   permission: ROLE.USER

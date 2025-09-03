@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import connectErrorImage from "@/assets/daemon_connection_error.png";
-import { useCommandHistory } from "@/hooks/useCommandHistory";
+import { useCommandHistoryStore } from "@/stores/useCommandHistoryStore";
 import { useXhrPollError } from "@/hooks/useXhrPollError";
 import { t } from "@/lang/i18n";
 import { getInstanceOutputLog } from "@/services/apis/instance";
 import { useLayoutContainerStore } from "@/stores/useLayoutContainerStore";
-import { CodeOutlined, DeleteOutlined, LoadingOutlined } from "@ant-design/icons-vue";
+import { CodeOutlined, DeleteOutlined, LoadingOutlined, HistoryOutlined } from "@ant-design/icons-vue";
 import { Terminal } from "@xterm/xterm";
 import { message } from "ant-design-vue";
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { encodeConsoleColor, type UseTerminalHook } from "../hooks/useTerminal";
 import { getRandomId } from "../tools/randId";
+import SystemResourceMonitor from "@/components/SystemResourceMonitor.vue";
+import CommandHistoryPanel from "@/components/CommandHistoryPanel.vue";
 
 const props = defineProps<{
   instanceId: string;
@@ -21,14 +23,8 @@ const props = defineProps<{
 
 const { containerState } = useLayoutContainerStore();
 
-const {
-  focusHistoryList,
-  selectLocation,
-  history,
-  commandInputValue,
-  handleHistorySelect,
-  clickHistoryItem
-} = useCommandHistory();
+// 使用新的历史命令存储
+const historyStore = useCommandHistoryStore();
 
 const {
   state,
@@ -54,14 +50,42 @@ let term: Terminal | undefined;
 let inputRef = ref<HTMLElement | null>(null);
 
 const handleSendCommand = () => {
-  if (focusHistoryList.value) return;
-  sendCommand(commandInputValue.value || "");
-  commandInputValue.value = "";
+  if (historyStore.isPanelVisible) return;
+  const command = historyStore.commandInputValue;
+  if (command.trim()) {
+    // 添加到历史记录
+    historyStore.addCommand(command);
+    // 发送命令
+    sendCommand(command);
+    // 清空输入
+    historyStore.commandInputValue = "";
+  }
 };
 
-const handleClickHistoryItem = (item: string) => {
-  clickHistoryItem(item);
+// 处理历史命令选择
+const handleCommandSelect = (command: string) => {
+  historyStore.commandInputValue = command;
   inputRef.value?.focus();
+};
+
+// 切换历史面板显示
+const toggleHistoryPanel = () => {
+  historyStore.togglePanel();
+};
+
+// 处理键盘事件
+const handleKeyDown = (event: KeyboardEvent) => {
+  // Ctrl+H 或 Cmd+H 切换历史面板
+  if ((event.ctrlKey || event.metaKey) && event.key === 'h') {
+    event.preventDefault();
+    toggleHistoryPanel();
+    return;
+  }
+  
+  // 如果面板打开，让面板处理键盘事件
+  if (historyStore.isPanelVisible) {
+    return;
+  }
 };
 
 const initTerminal = async () => {
@@ -117,10 +141,18 @@ onMounted(async () => {
       });
     }
     term = await initTerminal();
+    
+    // 添加全局键盘事件监听
+    document.addEventListener('keydown', handleKeyDown);
   } catch (error: any) {
     console.error(error);
     throw error;
   }
+});
+
+// 清理事件监听
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown);
 });
 </script>
 
@@ -142,43 +174,55 @@ onMounted(async () => {
         </li>
       </ul>
     </div>
+    <!-- 系统资源监控面板 -->
+    <SystemResourceMonitor />
+    
     <div class="terminal-wrapper global-card-container-shadow position-relative">
       <div class="terminal-container">
         <div
           v-if="!containerState.isDesignMode"
           :id="terminalDomId"
           :style="{ height: props.height }"
-        ></div>
+        >
+        </div>
         <div v-else :style="{ height: props.height }">
           <p class="terminal-design-tip">{{ $t("TXT_CODE_7ac6f85c") }}</p>
         </div>
       </div>
     </div>
     <div class="command-input">
-      <div v-show="focusHistoryList" class="history">
-        <li v-for="(item, key) in history" :key="item">
-          <a-tag
-            :color="key !== selectLocation ? 'blue' : '#108ee9'"
-            @click="handleClickHistoryItem(item)"
-          >
-            {{ item.length > 14 ? item.slice(0, 14) + "..." : item }}
-          </a-tag>
-        </li>
+      <!-- 命令输入框 -->
+      <div class="input-wrapper">
+        <a-input
+          ref="inputRef"
+          v-model:value="historyStore.commandInputValue"
+          :placeholder="t('TXT_CODE_555e2c1b')"
+          autofocus
+          :disabled="containerState.isDesignMode || !isConnect"
+          @press-enter="handleSendCommand"
+          @keydown="handleKeyDown"
+        >
+          <template #prefix>
+            <CodeOutlined style="font-size: 18px" />
+          </template>
+          <template #suffix>
+            <a-tooltip title="历史命令 (Ctrl+H)">
+              <a-button 
+                type="text" 
+                size="small"
+                @click="toggleHistoryPanel"
+                :class="{ 'active': historyStore.isPanelVisible }"
+              >
+                <HistoryOutlined />
+              </a-button>
+            </a-tooltip>
+          </template>
+        </a-input>
       </div>
-      <a-input
-        ref="inputRef"
-        v-model:value="commandInputValue"
-        :placeholder="t('TXT_CODE_555e2c1b')"
-        autofocus
-        :disabled="containerState.isDesignMode || !isConnect"
-        @press-enter="handleSendCommand"
-        @keydown="handleHistorySelect"
-      >
-        <template #prefix>
-          <CodeOutlined style="font-size: 18px" />
-        </template>
-      </a-input>
     </div>
+    
+    <!-- 历史命令面板 - 独立卡片 -->
+    <CommandHistoryPanel :on-command-select="handleCommandSelect" />
 
     <!-- Error Dialog -->
     <div v-if="socketError" class="error-card">
@@ -330,6 +374,11 @@ onMounted(async () => {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    color: #fff;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+    line-height: 1.2;
     .terminal-container {
       // min-width: 1200px;
       height: 100%;
@@ -341,29 +390,12 @@ onMounted(async () => {
   .command-input {
     position: relative;
 
-    .history {
-      display: flex;
-      max-width: 100%;
-      overflow: scroll;
-      z-index: 10;
-      position: absolute;
-      top: -35px;
-      left: 0;
-
-      li {
-        list-style: none;
-        span {
-          padding: 3px 20px;
-          max-width: 300px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          cursor: pointer;
-        }
-      }
-
-      &::-webkit-scrollbar {
-        width: 0 !important;
-        height: 0 !important;
+    .input-wrapper {
+      position: relative;
+      
+      .ant-btn.active {
+        color: var(--color-primary);
+        background-color: var(--color-primary-bg);
       }
     }
   }

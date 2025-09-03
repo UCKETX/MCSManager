@@ -36,6 +36,7 @@ import {
 import { Modal, type ItemType, type UploadChangeParam, type UploadProps } from "ant-design-vue";
 import dayjs from "dayjs";
 import { computed, h, onMounted, onUnmounted, ref, watch, type CSSProperties } from "vue";
+import { useRouter } from "vue-router";
 import FileEditor from "./dialogs/FileEditor.vue";
 
 const props = defineProps<{
@@ -85,6 +86,7 @@ const {
 } = useFileManager(instanceId, daemonId);
 
 const { openRightClickMenu } = useRightClickMenu();
+const router = useRouter();
 
 const isShowDiskList = computed(
   () =>
@@ -247,6 +249,18 @@ const editFile = (fileName: string) => {
   FileEditorDialog.value?.openDialog(path, fileName);
 };
 
+const openVSCodeEditor = () => {
+  const currentPath = breadcrumbs[breadcrumbs.length - 1].path;
+  router.push({
+    name: 'VSCodeEditor',
+    query: {
+      daemonId,
+      instanceId,
+      path: currentPath
+    }
+  });
+};
+
 const handleClickFile = async (file: DataType) => {
   if (file.type === 0) return rowClickTable(file.name, file.type);
   const fileExtName = getFileExtName(file.name);
@@ -289,6 +303,13 @@ const menuList = (record: DataType) =>
       icon: h(EditOutlined),
       onClick: () => editFile(record.name),
       condition: () => !isMultiple.value && record.type === 1
+    },
+    {
+      label: "VSCode编辑器",
+      key: "vscode",
+      icon: h(EditOutlined),
+      onClick: () => openVSCodeEditor(),
+      condition: () => !isMultiple.value
     },
     {
       label: t("TXT_CODE_65b21404"),
@@ -402,6 +423,11 @@ onUnmounted(() => {
             </a-button>
             <a-button v-else type="default" @click="reloadList()">
               {{ t("TXT_CODE_a53573af") }}
+            </a-button>
+
+            <a-button type="primary" @click="openVSCodeEditor()">
+              <EditOutlined />
+              VSCode编辑器
             </a-button>
 
             <a-dropdown v-if="isMultiple">

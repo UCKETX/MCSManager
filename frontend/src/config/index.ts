@@ -43,6 +43,7 @@ import UserAccessSettings from "@/widgets/user/AccessSettings.vue";
 import UserInstanceList from "@/widgets/UserInstanceList.vue";
 import UserList from "@/widgets/UserList.vue";
 import UserStatusBlock from "@/widgets/UserStatusBlock.vue";
+import VSCodeEditor from "@/widgets/instance/VSCodeEditor.vue";
 
 import { NEW_CARD_TYPE } from "../types/index";
 import { LayoutCardHeight } from "./originLayoutConfig";
@@ -91,7 +92,8 @@ export const LAYOUT_CARD_TYPES: { [key: string]: any } = {
   MusicCard,
   ShelvesCard,
   OperationLogCard,
-  Market
+  Market,
+  VSCodeEditor
 };
 
 export interface NewCardItem extends LayoutCard {
@@ -535,6 +537,34 @@ export function getLayoutCardPool() {
       description: t("TXT_CODE_9b45858c"),
       height: LayoutCardHeight.BIG,
       category: NEW_CARD_TYPE.COMMON
+    },
+    {
+      id: getRandomId(),
+      permission: ROLE.USER,
+      meta: {},
+      type: "VSCodeEditor",
+      title: "VSCode编辑器",
+      width: 12,
+      description: "基于Monaco Editor的代码编辑器，支持语法高亮和代码补全",
+      height: LayoutCardHeight.LARGE,
+      category: NEW_CARD_TYPE.INSTANCE,
+      params: [
+        {
+          field: "instanceId",
+          label: t("TXT_CODE_e6a5c12b"),
+          type: "string"
+        },
+        {
+          field: "daemonId",
+          label: t("TXT_CODE_72cfab69"),
+          type: "string"
+        },
+        {
+          field: "instance",
+          label: t("TXT_CODE_cb043d10"),
+          type: "instance"
+        }
+      ]
     }
   ];
   return LAYOUT_CARD_POOL;

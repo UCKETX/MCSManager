@@ -548,6 +548,28 @@ function getDefaultFrontendLayoutConfig(): IPageLayoutConfig[] {
       ]
     },
     {
+      page: "/instances/terminal/vscode",
+      items: [
+        {
+          id: getRandomId(),
+          meta: {},
+          type: "VSCodeEditor",
+          title: t("TXT_CODE_vscode_editor") || "VSCode编辑器",
+          width: 12,
+          height: LayoutCardHeight.AUTO,
+          disableDelete: true
+        },
+        {
+          id: getRandomId(),
+          meta: {},
+          type: "EmptyCard",
+          title: "",
+          width: 12,
+          height: LayoutCardHeight.MINI
+        }
+      ]
+    },
+    {
       page: "/login",
       items: [
         {

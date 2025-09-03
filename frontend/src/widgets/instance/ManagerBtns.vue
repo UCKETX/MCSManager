@@ -20,7 +20,8 @@ import {
   DashboardOutlined,
   FieldTimeOutlined,
   FolderOpenOutlined,
-  UsergroupDeleteOutlined
+  UsergroupDeleteOutlined,
+  EditOutlined
 } from "@ant-design/icons-vue";
 
 import { computed, ref, watch } from "vue";
@@ -112,6 +113,14 @@ const btns = computed(() => {
       icon: FolderOpenOutlined,
       click: () => {
         toPage({ path: "/instances/terminal/files" });
+      },
+      condition: () => state.settings.canFileManager || isAdmin.value
+    },
+    {
+      title: "VSCode编辑器",
+      icon: EditOutlined,
+      click: () => {
+        toPage({ path: "/instances/terminal/vscode" });
       },
       condition: () => state.settings.canFileManager || isAdmin.value
     },
