@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import connectErrorImage from "@/assets/daemon_connection_error.png";
-import { useCommandHistoryStore } from "@/stores/useCommandHistoryStore";
+import CommandHistoryPanel from "@/components/CommandHistoryPanel.vue";
 import { useXhrPollError } from "@/hooks/useXhrPollError";
 import { t } from "@/lang/i18n";
 import { getInstanceOutputLog } from "@/services/apis/instance";
+import { useCommandHistoryStore } from "@/stores/useCommandHistoryStore";
 import { useLayoutContainerStore } from "@/stores/useLayoutContainerStore";
-import { CodeOutlined, DeleteOutlined, LoadingOutlined, HistoryOutlined } from "@ant-design/icons-vue";
+import { CodeOutlined, DeleteOutlined, HistoryOutlined, LoadingOutlined } from "@ant-design/icons-vue";
 import { Terminal } from "@xterm/xterm";
 import { message } from "ant-design-vue";
 import { onMounted, onUnmounted, ref } from "vue";
 import { encodeConsoleColor, type UseTerminalHook } from "../hooks/useTerminal";
 import { getRandomId } from "../tools/randId";
-import SystemResourceMonitor from "@/components/SystemResourceMonitor.vue";
-import CommandHistoryPanel from "@/components/CommandHistoryPanel.vue";
 
 const props = defineProps<{
   instanceId: string;
@@ -175,7 +174,7 @@ onUnmounted(() => {
       </ul>
     </div>
     <!-- 系统资源监控面板 -->
-    <SystemResourceMonitor />
+
     
     <div class="terminal-wrapper global-card-container-shadow position-relative">
       <div class="terminal-container">
