@@ -29,6 +29,13 @@ let editor: monaco.editor.IStandaloneCodeEditor | undefined;
 let displayedPath = "";
 let syncing = false;
 
+const openSearch = (replace = false) => {
+  if (!editor?.getModel()) return;
+  editor.focus();
+  void editor.getAction(replace ? "editor.action.startFindReplaceAction" : "actions.find")?.run();
+};
+defineExpose({ openSearch });
+
 const updateCursor = () => {
   const position = editor?.getPosition();
   const model = editor?.getModel();

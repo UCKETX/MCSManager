@@ -3303,5 +3303,7 @@
   "TXT_CODE_WORKSPACE_DELETE_CONFIRM": "确定删除 {name}？",
   "TXT_CODE_WORKSPACE_DELETE_DIRTY": "删除文件或其目录前，请先保存或关闭有修改的文件。",
   "TXT_CODE_INSTANCE_NETWORK_UNAVAILABLE": "等待实例网络数据。Linux 普通进程需要安装支持 TCP/UDP 的 NetHogs，并授予网络采集权限。",
-  "TXT_CODE_INSTANCE_NETWORK_HELP": "此实例的下行 / 上行速度，点击切换字节和比特单位。"
+  "TXT_CODE_INSTANCE_NETWORK_HELP": "此实例的下行 / 上行速度，点击切换字节和比特单位。",
+  "TXT_CODE_WORKSPACE_FIND": "文件内搜索",
+  "TXT_CODE_WORKSPACE_REPLACE": "替换"
 }

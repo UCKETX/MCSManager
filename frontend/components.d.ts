@@ -139,5 +139,6 @@ declare module 'vue' {
     UploadFileDialog: typeof import('./src/components/fc/UploadFileDialog.vue')['default']
     UploadTaskProgress: typeof import('./src/components/UploadTaskProgress.vue')['default']
     WarningDialog: typeof import('./src/components/fc/WarningDialog.vue')['default']
+    WorkspaceFileIcon: typeof import('./src/components/WorkspaceFileIcon.vue')['default']
   }
 }

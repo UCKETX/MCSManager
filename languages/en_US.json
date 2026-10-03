@@ -3303,5 +3303,7 @@
   "TXT_CODE_WORKSPACE_DELETE_CONFIRM": "Delete {name}?",
   "TXT_CODE_WORKSPACE_DELETE_DIRTY": "Save or close modified files before deleting them or their folder.",
   "TXT_CODE_INSTANCE_NETWORK_UNAVAILABLE": "Waiting for instance network data. Linux processes require NetHogs with TCP/UDP support and capture permissions.",
-  "TXT_CODE_INSTANCE_NETWORK_HELP": "Instance download / upload speed. Click to switch between bytes and bits."
+  "TXT_CODE_INSTANCE_NETWORK_HELP": "Instance download / upload speed. Click to switch between bytes and bits.",
+  "TXT_CODE_WORKSPACE_FIND": "Find in file",
+  "TXT_CODE_WORKSPACE_REPLACE": "Replace"
 }

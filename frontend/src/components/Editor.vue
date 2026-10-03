@@ -12,6 +12,7 @@ import * as propertiesMode from "@codemirror/legacy-modes/mode/properties";
 import * as shellMode from "@codemirror/legacy-modes/mode/shell";
 import * as yamlMode from "@codemirror/legacy-modes/mode/yaml";
 import { linter, lintGutter } from "@codemirror/lint";
+import { openSearchPanel } from "@codemirror/search";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tokyoNight } from "@uiw/codemirror-theme-tokyo-night";
@@ -76,6 +77,17 @@ const getLanguageExtension = () => {
 };
 
 let editor: EditorView | null = null;
+
+const openSearch = (replace = false) => {
+  if (!editor) return;
+  openSearchPanel(editor);
+  const input = editor.dom.querySelector<HTMLInputElement>(
+    `.cm-search input[name="${replace ? "replace" : "search"}"]`
+  );
+  input?.focus();
+  input?.select();
+};
+defineExpose({ openSearch });
 
 const createThemeExtension = () => {
   return EditorView.theme({

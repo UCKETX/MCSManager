@@ -3207,5 +3207,7 @@
   "TXT_CODE_file_ownership.invalidId": "實例 runAs 設定中的 {{label}} 無效",
   "TXT_CODE_file_ownership.invalidTarget": "存取遭拒：擁有權目標無效",
   "TXT_CODE_file_ownership.outsideWorkspace": "存取遭拒：擁有權目標超出實例工作目錄",
-  "TXT_CODE_file_ownership.targetChanged": "存取遭拒：擁有權目標在驗證期間發生變更"
+  "TXT_CODE_file_ownership.targetChanged": "存取遭拒：擁有權目標在驗證期間發生變更",
+  "TXT_CODE_WORKSPACE_FIND": "檔案內搜尋",
+  "TXT_CODE_WORKSPACE_REPLACE": "取代"
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Editor from "@/components/Editor.vue";
+import WorkspaceFileIcon from "@/components/WorkspaceFileIcon.vue";
 import { getFileConfigAddr } from "@/hooks/useFileManager";
 import { useFileTree, type WorkspaceTreeNode } from "@/hooks/useFileTree";
 import {
@@ -34,6 +35,7 @@ import {
   FullscreenExitOutlined,
   FullscreenOutlined,
   ReloadOutlined,
+  RetweetOutlined,
   SaveOutlined,
   SearchOutlined
 } from "@ant-design/icons-vue";
@@ -85,6 +87,8 @@ const sidebarOpen = ref(true);
 const sidebarWidth = ref(240);
 const fullscreen = ref(false);
 const container = ref<HTMLElement>();
+const editorRef = ref<Pick<InstanceType<typeof Editor>, "openSearch">>();
+const openEditorSearch = (replace = false) => editorRef.value?.openSearch(replace);
 const operationBusy = ref(false);
 const quickOpen = ref(false);
 const search = ref("");
@@ -301,6 +305,27 @@ const handleKey = (event: KeyboardEvent) => {
     fullscreen.value = false;
     return;
   }
+  const key = event.key.toLowerCase();
+  const findShortcut = (event.ctrlKey || event.metaKey) && !event.altKey && key === "f";
+  const replaceShortcut =
+    (event.ctrlKey && !event.metaKey && !event.altKey && key === "h") ||
+    (event.metaKey && event.altKey && key === "f");
+  if (
+    !event.shiftKey &&
+    (findShortcut || replaceShortcut) &&
+    activeDocument.value &&
+    editorRef.value &&
+    !guard.value &&
+    !conflict.value &&
+    !quickOpen.value &&
+    event.target instanceof Node &&
+    container.value?.contains(event.target)
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    openEditorSearch(replaceShortcut);
+    return;
+  }
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
   if (event.key.toLowerCase() === "s") {
     event.preventDefault();
@@ -369,6 +394,22 @@ onBeforeUnmount(() => {
         <CodeOutlined /><span>{{ t("TXT_CODE_WORKSPACE_TITLE") }}</span><span class="workspace-instance">{{ instanceId.slice(0, 8) }}</span>
       </div>
       <div class="toolbar-actions">
+        <a-button
+          size="small"
+          :disabled="!activeDocument || !editorRef"
+          :title="t('TXT_CODE_WORKSPACE_FIND') + ' (Ctrl / ⌘ + F)'"
+          @click="openEditorSearch()"
+        >
+          <SearchOutlined />{{ t("TXT_CODE_WORKSPACE_FIND") }}
+        </a-button>
+        <a-button
+          size="small"
+          :disabled="!activeDocument || !editorRef"
+          :title="t('TXT_CODE_WORKSPACE_REPLACE') + ' (Ctrl + H / ⌘ + ⌥ + F)'"
+          @click="openEditorSearch(true)"
+        >
+          <RetweetOutlined />{{ t("TXT_CODE_WORKSPACE_REPLACE") }}
+        </a-button>
         <a-button
           size="small"
           :disabled="!activeDocument || activeDocument.saving || savingAll || operationBusy"
@@ -470,7 +511,16 @@ onBeforeUnmount(() => {
             :load-data="(node: any) => loadDirectory(node.dataRef).catch(() => {})"
             :show-icon="true"
             @select="selectTree"
-          />
+          >
+            <template #icon="{ dataRef, expanded }">
+              <WorkspaceFileIcon
+                :filename="dataRef.title"
+                :directory="!dataRef.isLeaf"
+                :expanded="expanded"
+                :more="dataRef.more"
+              />
+            </template>
+          </a-directory-tree>
         </div>
       </aside>
       <div
@@ -500,6 +550,7 @@ onBeforeUnmount(() => {
               :title="document.path"
               @click="openFile(document.path)"
             >
+              <WorkspaceFileIcon :filename="document.name" />
               <span>{{ document.name }}</span><span
                 v-if="isDocumentDirty(document)"
                 class="dirty-dot"
@@ -523,6 +574,7 @@ onBeforeUnmount(() => {
           <template v-if="activeDocument">
             <Editor
               v-if="isPhone"
+              ref="editorRef"
               :key="activeDocument.path + activeDocument.revision"
               :text="activeDocument.text"
               :filename="activeDocument.name"
@@ -531,6 +583,7 @@ onBeforeUnmount(() => {
             />
             <MonacoEditor
               v-else
+              ref="editorRef"
               :documents="documents"
               :active-path="activePath"
               :dark="isDarkTheme"
@@ -635,7 +688,7 @@ onBeforeUnmount(() => {
           quickOpen = false;
         "
       >
-        {{ file.key }}
+        <WorkspaceFileIcon :filename="file.title" /><span>{{ file.key }}</span>
       </button><a-empty v-if="!quickFiles.length" />
     </div>
   </a-modal>
@@ -704,6 +757,7 @@ onBeforeUnmount(() => {
 .toolbar-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
 }
@@ -902,7 +956,9 @@ onBeforeUnmount(() => {
   overflow: auto;
   margin-top: 12px;
   button {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
     text-align: left;
     padding: 10px;
