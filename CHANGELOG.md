@@ -50,3 +50,11 @@ MCSManager 仓库定制预发布版本，基于面板 10.19.0 / Daemon 4.19.0。
 - 前端类型检查、前端构建和 Daemon 构建通过；浏览器验证了窄屏换行及网络数据缺失的显示。
 - 后端全量集成回归在原有实例套件中有 2 项上传 / 解压失败；全量前端 lint 仍有原有 `NodeRemoteMappingEdit.vue` 的 emits 校验错误。以上没有计为通过。
 - 本地环境为 macOS，Linux NetHogs 抓包和 Windows 运行环境尚未完成实机验证。
+
+### 追加：macOS 发布包
+
+- Release Actions 增加 macOS arm64（Apple Silicon）和 x64（Intel）打包，每种架构提供完整包、面板独立包和 Daemon 独立包。
+- 内置对应架构的 Node.js 20、PTY 和解压工具，启动脚本可从任意目录运行并支持路径中的空格。
+- Node.js 运行文件下载后校验官方 SHA-256；上传前校验包结构、原生文件架构和可执行权限。
+- 发布新 Release 时自动补齐 Mac 包，也可通过 Release Build 的手动运行入口填写现有 `release_tag` 补发。
+- Mac 包复用目标 Release 的应用文件，打包流程不依赖系统级 Node.js 安装。
