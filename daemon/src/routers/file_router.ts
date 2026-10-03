@@ -294,6 +294,19 @@ routerApp.on("file/delete", async (ctx, data) => {
 });
 
 // edit file
+routerApp.on("file/content", async (ctx, data) => {
+  try {
+    const result = await getFileManager(data.instanceUuid).workspaceContent(
+      data.target,
+      data.text,
+      data.revision
+    );
+    protocol.response(ctx, result);
+  } catch (error: any) {
+    protocol.responseError(ctx, error);
+  }
+});
+
 routerApp.on("file/edit", async (ctx, data) => {
   try {
     const target = data.target;

@@ -1,4 +1,6 @@
 import fs from "fs-extra";
+import { createHash } from "crypto";
+import { promises as nativeFs } from "fs";
 import iconv from "iconv-lite";
 import { ProcessWrapper } from "mcsmanager-common";
 import StreamZip from "node-stream-zip";
@@ -11,6 +13,7 @@ import { syncPathOwnershipWithinRoot } from "../tools/file_ownership";
 import type { FileOwnership } from "../tools/file_ownership";
 import { normalizedJoin } from "../tools/filepath";
 import { resolveRealPath } from "../tools/path_link_check";
+import { withFileEditLock } from "../tools/file_edit_lock";
 
 const ERROR_MSG_01 = $t("TXT_CODE_system_file.illegalAccess");
 const ERROR_PATH_NOT_FOUND = $t("TXT_CODE_96281410");
@@ -380,7 +383,11 @@ export default class FileManager {
   async edit(target: string, data?: string) {
     if (!this.check(target)) throw new Error(ERROR_MSG_01);
     if (data || typeof data === "string") {
-      return await this.writeFile(target, data);
+      return await withFileEditLock(fs.realpathSync(this.toAbsolutePath(target)), async () => {
+        if (iconv.encode(data, this.fileCode || "utf-8").length > MAX_EDIT_SIZE)
+          throw new Error($t("TXT_CODE_system_file.execLimit"));
+        return await this.writeFile(target, data);
+      });
     } else {
       const absPath = this.toAbsolutePath(target);
       const info = fs.statSync(absPath);
@@ -389,6 +396,67 @@ export default class FileManager {
       }
       return await this.readFile(target);
     }
+  }
+
+  async workspaceContent(target: string, text?: string, revision?: string) {
+    if (typeof target !== "string" || !target || target.length > 4096 || !this.check(target))
+      throw new Error(ERROR_MSG_01);
+    const absPath = fs.realpathSync(this.toAbsolutePath(target));
+    this.assertInsideWorkspace(absPath);
+    if (text !== undefined && (typeof text !== "string" || !/^[a-f0-9]{64}$/.test(revision || "")))
+      throw new Error($t("TXT_CODE_WORKSPACE_INVALID"));
+    return await withFileEditLock(absPath, async () => {
+      const encoding = this.fileCode || "utf-8";
+      const output = text === undefined ? undefined : iconv.encode(text, encoding);
+      if (output && (output.length > MAX_EDIT_SIZE || text!.includes("\0")))
+        throw new Error($t("TXT_CODE_WORKSPACE_TEXT_ONLY"));
+      if (output && iconv.decode(output, encoding, { stripBOM: false }) !== text)
+        throw new Error($t("TXT_CODE_WORKSPACE_TEXT_ONLY"));
+      // Reject devices and FIFOs before opening; a FIFO read can otherwise block.
+      if (!fs.statSync(absPath).isFile()) throw new Error($t("TXT_CODE_WORKSPACE_TEXT_ONLY"));
+      const flags =
+        (output ? fs.constants.O_RDWR : fs.constants.O_RDONLY) |
+        (fs.constants.O_NONBLOCK || 0) |
+        (fs.constants.O_NOFOLLOW || 0);
+      const handle = await nativeFs.open(absPath, flags);
+      try {
+        const stat = await handle.stat();
+        if (!stat.isFile()) throw new Error($t("TXT_CODE_WORKSPACE_TEXT_ONLY"));
+        if (stat.size > MAX_EDIT_SIZE) throw new Error($t("TXT_CODE_system_file.execLimit"));
+        // Read at most limit + 1, even if another process grows the file after stat.
+        const buffer = Buffer.alloc(Math.min(stat.size + 1, MAX_EDIT_SIZE + 1));
+        let size = 0;
+        while (size < buffer.length) {
+          const { bytesRead } = await handle.read(buffer, size, buffer.length - size, size);
+          if (!bytesRead) break;
+          size += bytesRead;
+        }
+        const after = await handle.stat();
+        if (after.size > MAX_EDIT_SIZE) throw new Error($t("TXT_CODE_system_file.execLimit"));
+        if (after.size !== size || after.mtimeMs !== stat.mtimeMs)
+          throw new Error($t("TXT_CODE_WORKSPACE_BUSY"));
+        const bytes = buffer.subarray(0, size);
+        const content = iconv.decode(bytes, encoding, { stripBOM: false });
+        if (content.includes("\0") || !iconv.encode(content, encoding).equals(bytes))
+          throw new Error($t("TXT_CODE_WORKSPACE_TEXT_ONLY"));
+        const currentRevision = createHash("sha256").update(bytes).digest("hex");
+        const snapshot = { text: content, revision: currentRevision, encoding };
+        if (!output) return { ...snapshot, conflict: false };
+        if (currentRevision !== revision) return { ...snapshot, conflict: true };
+        // Explicit-position reads above leave the write position at zero. Writing
+        // in place preserves ownership, permissions and in-workspace symlinks.
+        await handle.writeFile(output);
+        await handle.truncate(output.length);
+        return {
+          text: text!,
+          revision: createHash("sha256").update(output).digest("hex"),
+          encoding,
+          conflict: false
+        };
+      } finally {
+        await handle.close();
+      }
+    });
   }
 
   rename(target: string, newName: string) {

@@ -17,6 +17,7 @@ import PtyStartCommand from "./pty/pty_start";
 import RconCommand from "./steam/rcon_command";
 import InstanceDiskCheckTask from "./task/any_stats";
 import DockerStatsTask from "./task/docker_stats";
+import ProcessStatsTask from "./task/process_stats";
 import PingMinecraftServerTask from "./task/mc_players";
 import TimeCheck from "./task/time";
 
@@ -72,6 +73,8 @@ export default class FunctionDispatcher extends InstanceCommand {
       instance.setPreset("start", new DockerStartCommand());
       instance.setPreset("resize", new DockerResizeCommand());
       instance.lifeCycleTaskManager.registerLifeCycleTask(new DockerStatsTask());
+    } else {
+      instance.lifeCycleTaskManager.registerLifeCycleTask(new ProcessStatsTask());
     }
     if (instance.config.enableRcon) {
       instance.setPreset("command", new RconCommand());

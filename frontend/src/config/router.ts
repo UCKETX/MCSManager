@@ -170,6 +170,12 @@ const originRouterConfig: RouterConfig[] = [
     ]
   },
   {
+    path: "/instances/terminal/files/editor",
+    name: t("TXT_CODE_WORKSPACE_TITLE"),
+    component: () => import("@/views/FileWorkspace.vue"),
+    meta: { permission: ROLE.USER, mainMenu: false }
+  },
+  {
     path: "/market",
     name: t("TXT_CODE_27594db8"),
     component: LayoutContainer,

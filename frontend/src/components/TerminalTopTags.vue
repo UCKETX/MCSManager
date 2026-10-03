@@ -32,6 +32,7 @@ interface PerfCardItem {
   icon: Component;
   theme: string;
   barPercent: number;
+  help?: string;
   onClick?: () => void;
 }
 
@@ -54,7 +55,9 @@ const formatMemoryUsage = (usage?: number, limit?: number) => {
 };
 
 const formatNetworkSpeed = (bytes?: number) =>
-  useByteUnit.value
+  bytes == null
+    ? "—"
+    : useByteUnit.value
     ? prettyBytes(bytes ?? 0, { ...prettyBytesConfig, binary: false }) + "/s"
     : prettyBytes((bytes ?? 0) * 8, { ...prettyBytesConfig, bits: true, binary: false }).replace(
         /bit$/,
@@ -87,7 +90,7 @@ const cards = computed<PerfCardItem[]>(() => {
       : cpuUsage != null && cpuUsage > 200
       ? "warning"
       : "normal";
-  const cpuPercent = Math.min(parseInt(String(cpuUsage ?? 0)), 100);
+  const cpuPercent = Math.min(cpuUsage ?? 0, 100);
   const memPercent = Math.min(memoryUsagePercent ?? 0, 100);
   const storagePercent =
     storageUsage && storageLimit ? Math.min((storageUsage / storageLimit) * 100, 100) : 0;
@@ -97,7 +100,7 @@ const cards = computed<PerfCardItem[]>(() => {
       ? {
           key: "cpu",
           label: t("TXT_CODE_b862a158"),
-          value: `${parseInt(String(cpuUsage))}%`,
+          value: `${Number(cpuUsage.toFixed(1))}%`,
           icon: BlockOutlined,
           theme: `perf-card--cpu-${cpuStatus}`,
           barPercent: cpuPercent
@@ -126,19 +129,21 @@ const cards = computed<PerfCardItem[]>(() => {
         }
       : null,
 
-    rxRate != null || txRate != null
-      ? {
-          key: "network-bandwidth",
-          label: `${t("TXT_CODE_NETWORK_CURRENT")}`,
-          value: `↓${formatNetworkSpeed(rxRate)} ↑${formatNetworkSpeed(txRate)}`,
-          icon: ApartmentOutlined,
-          theme: "perf-card--network",
-          barPercent: 0,
-          onClick: () => {
-            useByteUnit.value = !useByteUnit.value;
-          }
-        }
-      : null,
+    {
+      key: "network-bandwidth",
+      label: `${t("TXT_CODE_NETWORK_CURRENT")}`,
+      value: `↓${formatNetworkSpeed(rxRate)} ↑${formatNetworkSpeed(txRate)}`,
+      help:
+        rxRate == null && txRate == null
+          ? t("TXT_CODE_INSTANCE_NETWORK_UNAVAILABLE")
+          : t("TXT_CODE_INSTANCE_NETWORK_HELP"),
+      icon: ApartmentOutlined,
+      theme: "perf-card--network",
+      barPercent: 0,
+      onClick: () => {
+        useByteUnit.value = !useByteUnit.value;
+      }
+    },
 
     rxBytes != null || txBytes != null
       ? {
@@ -152,10 +157,6 @@ const cards = computed<PerfCardItem[]>(() => {
       : null
   ];
 
-  if (window.innerWidth < 660) {
-    return items.filter(Boolean).slice(0, 2) as PerfCardItem[];
-  }
-
   return items.filter(Boolean) as PerfCardItem[];
 });
 </script>
@@ -167,6 +168,7 @@ const cards = computed<PerfCardItem[]>(() => {
       :key="card.key"
       class="card"
       :class="card.theme"
+      :title="card.help"
       @click="card.onClick?.()"
     >
       {{ card.label }} {{ card.value }}
@@ -179,8 +181,11 @@ const cards = computed<PerfCardItem[]>(() => {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 0px;
+  flex-wrap: wrap;
+  gap: 6px;
   .card {
+    margin-inline-end: 0;
+    white-space: normal;
     user-select: none;
   }
 }

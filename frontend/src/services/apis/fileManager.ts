@@ -1,5 +1,44 @@
 import { useDefineApi } from "@/stores/useDefineApi";
 import type { RemoteMappingEntry } from "@/tools/protocol";
+import { apiService } from "@/services/apiService";
+
+export interface FileContentSnapshot {
+  text: string;
+  revision: string;
+  encoding: string;
+  conflict: boolean;
+}
+
+export async function readWorkspaceFile(daemonId: string, uuid: string, target: string) {
+  const result = await apiService.subscribe<FileContentSnapshot>({
+    url: "/api/files/content",
+    method: "GET",
+    params: { daemonId, uuid, target },
+    forceRequest: true
+  });
+  if (!result || typeof result.text !== "string" || typeof result.revision !== "string")
+    throw new Error("Invalid file content response");
+  return result;
+}
+
+export async function writeWorkspaceFile(
+  daemonId: string,
+  uuid: string,
+  target: string,
+  text: string,
+  revision: string
+) {
+  const result = await apiService.subscribe<FileContentSnapshot>({
+    url: "/api/files/content",
+    method: "PUT",
+    params: { daemonId, uuid },
+    data: { target, text, revision },
+    forceRequest: true
+  });
+  if (!result || typeof result.revision !== "string" || typeof result.conflict !== "boolean")
+    throw new Error("Invalid file content response");
+  return result;
+}
 
 export const fileList = useDefineApi<
   {

@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,6 +43,13 @@ jobs:
         run: |
           cp LICENSE dist_linux/LICENSE
           cp LICENSE dist_windows/LICENSE
+
+      - name: Copy changelog and resource monitoring guide
+        run: |
+          cp CHANGELOG.md dist_linux/CHANGELOG.md
+          cp CHANGELOG.md dist_windows/CHANGELOG.md
+          cp docs/instance-resource-metrics.md dist_linux/INSTANCE_RESOURCE_METRICS.md
+          cp docs/instance-resource-metrics.md dist_windows/INSTANCE_RESOURCE_METRICS.md
 
       - name: Copy node runtime to windows build
         run: |

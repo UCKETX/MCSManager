@@ -88,6 +88,9 @@ async function initI18n(lang: string) {
   lang = toStandardLang(lang);
 
   const langFiles = import.meta.glob("../../../languages/*.json");
+  if (state.isInstall && lang !== "en_us" && !messages.en_us) {
+    messages.en_us = normalizeLangModule(await langFiles["../../../languages/en_US.json"]());
+  }
   for (const path in langFiles) {
     const langFile = langFiles[path];
     if (typeof langFile !== "function") continue;

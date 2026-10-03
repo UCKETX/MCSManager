@@ -445,6 +445,66 @@ describe("files: CRUD + zip + upload/download + traversal (real daemon + panel)"
     ).not.toBe(200);
   });
 
+  it("workspace content: empty reads, conditional saves, stale conflicts and invalid requests", async () => {
+    const target = "workspace.txt";
+    expect((await touchFile(target)).httpStatus).toBe(200);
+    const query = { daemonId: di(), uuid: iu(), target };
+    const read = () => requestPanel({ method: "GET", path: "/files/content", query, ...u1() });
+    const write = (text: any, revision: any) =>
+      requestPanel({
+        method: "PUT",
+        path: "/files/content",
+        query,
+        ...u1(),
+        body: { target, text, revision }
+      });
+    const opened = await read();
+    expect(opened.httpStatus).toBe(200);
+    expect(opened.data).toMatchObject({ text: "", conflict: false });
+    expect(opened.data.revision).toMatch(/^[a-f0-9]{64}$/);
+    const saved = await write("first\r\n", opened.data.revision);
+    expect(saved.httpStatus).toBe(200);
+    expect(saved.data.conflict).toBe(false);
+    const stale = await write("stale", opened.data.revision);
+    expect(stale.httpStatus).toBe(200);
+    expect(stale.data).toMatchObject({ text: "first\r\n", conflict: true });
+    expect((await read()).data.text).toBe("first\r\n");
+    expect((await write("", stale.data.revision)).data.conflict).toBe(false);
+    expect((await read()).data.text).toBe("");
+    expect((await write({ value: "invalid" }, stale.data.revision)).httpStatus).toBe(400);
+    expect((await write("bad", "invalid")).httpStatus).toBe(400);
+    expect(
+      (
+        await requestPanel({
+          method: "GET",
+          path: "/files/content",
+          ...u1(),
+          query: { ...query, target: "../../etc/passwd" }
+        })
+      ).httpStatus
+    ).not.toBe(200);
+  });
+
+  it("workspace content uses the existing instance ownership gate", async () => {
+    await ensureUser("u2", world.key);
+    const query = { daemonId: di(), uuid: iu(), target: "workspace.txt" };
+    const session = { cookie: world.u2.cookie!, token: world.u2.token! };
+    expect(
+      (await requestPanel({ method: "GET", path: "/files/content", query, ...session })).httpStatus
+    ).toBe(403);
+    expect(
+      (
+        await requestPanel({
+          method: "PUT",
+          path: "/files/content",
+          query,
+          ...session,
+          body: { target: "workspace.txt", text: "unauthorized", revision: "a".repeat(64) }
+        })
+      ).httpStatus
+    ).toBe(403);
+  });
+
   it("per-instance gate: u2 → 403 (key not instance-admin; admin gate already pinned in auth.test.ts)", async () => {
     // ensureOwner for u2 here would flip ownership and disturb later suites;
     // for the gate test we only need u2 to be a logged-in non-owner. ensureUser

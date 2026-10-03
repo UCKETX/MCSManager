@@ -34,6 +34,65 @@ router.use(async (ctx, next) => {
 });
 
 router.get(
+  "/content",
+  permission({ level: ROLE.USER }),
+  validator({ query: { daemonId: String, uuid: String, target: String } }),
+  async (ctx) => {
+    try {
+      const remoteService = RemoteServiceSubsystem.getInstance(String(ctx.query.daemonId));
+      ctx.body = await new RemoteRequest(remoteService).request("file/content", {
+        instanceUuid: String(ctx.query.uuid),
+        target: String(ctx.query.target)
+      });
+    } catch (err) {
+      ctx.body = err;
+    }
+  }
+);
+
+router.put(
+  "/content",
+  permission({ level: ROLE.USER }),
+  validator({ query: { daemonId: String, uuid: String }, body: { target: String } }),
+  async (ctx) => {
+    const { target, text, revision } = ctx.request.body;
+    if (
+      typeof text !== "string" ||
+      text.length > 5 * 1024 * 1024 ||
+      typeof revision !== "string" ||
+      !/^[a-f0-9]{64}$/.test(revision)
+    ) {
+      ctx.status = 400;
+      ctx.body = $t("TXT_CODE_WORKSPACE_INVALID");
+      return;
+    }
+    try {
+      const daemonId = String(ctx.query.daemonId);
+      const instanceUuid = String(ctx.query.uuid);
+      const remoteService = RemoteServiceSubsystem.getInstance(daemonId);
+      const result = await new RemoteRequest(remoteService).request("file/content", {
+        instanceUuid,
+        target,
+        text,
+        revision
+      });
+      if (!result.conflict) {
+        operationLogger.log("instance_file_update", {
+          ...getOperationLoggerOperator(ctx),
+          instance_id: instanceUuid,
+          daemon_id: daemonId,
+          instance_name: await getInstanceNameSafely(daemonId, instanceUuid),
+          file: target
+        });
+      }
+      ctx.body = result;
+    } catch (err) {
+      ctx.body = err;
+    }
+  }
+);
+
+router.get(
   "/status",
   speedLimit(0.1),
   permission({ level: ROLE.USER, speedLimit: false }),

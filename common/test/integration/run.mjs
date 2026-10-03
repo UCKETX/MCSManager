@@ -14,6 +14,7 @@ const REPO = path.resolve(__dirname, "../../..");
 const SUITES = [
   "auth",
   "user",
+  "process_metrics",
   "instance",
   "files",
   "streams",

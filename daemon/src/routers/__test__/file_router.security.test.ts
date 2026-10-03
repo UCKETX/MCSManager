@@ -157,6 +157,85 @@ const AUTHED = (id = "sx") => ({
   stream: {}
 });
 
+describe("versioned workspace content", () => {
+  it("round-trips empty files, UTF-8 BOM and CRLF without changing permissions", async () => {
+    const manager = new FileManager(sandbox.dirA, "utf-8");
+    const target = path.join(sandbox.dirA, "workspace.txt");
+    fs.writeFileSync(target, "\uFEFFhello\r\n", { mode: 0o640 });
+    const mode = fs.statSync(target).mode;
+    const opened = await manager.workspaceContent("workspace.txt");
+    expect(opened.text).toBe("\uFEFFhello\r\n");
+    const saved = await manager.workspaceContent("workspace.txt", "", opened.revision);
+    expect(saved.conflict).toBe(false);
+    expect(fs.readFileSync(target, "utf8")).toBe("");
+    expect(fs.statSync(target).mode).toBe(mode);
+    expect((await manager.workspaceContent("workspace.txt")).text).toBe("");
+  });
+
+  it("rejects stale saves and returns the current disk snapshot", async () => {
+    const manager = new FileManager(sandbox.dirA, "utf-8");
+    const target = path.join(sandbox.dirA, "workspace.txt");
+    fs.writeFileSync(target, "original");
+    const opened = await manager.workspaceContent("workspace.txt");
+    fs.writeFileSync(target, "external edit");
+    const result = await manager.workspaceContent("workspace.txt", "local edit", opened.revision);
+    expect(result).toMatchObject({ conflict: true, text: "external edit" });
+    expect(fs.readFileSync(target, "utf8")).toBe("external edit");
+    expect(
+      (await manager.workspaceContent("workspace.txt", "local edit", result.revision)).conflict
+    ).toBe(false);
+  });
+
+  it("allows at most one concurrent writer and rejects stale revisions through aliases", async () => {
+    const manager = new FileManager(sandbox.dirA, "utf-8");
+    fs.writeFileSync(path.join(sandbox.dirA, "workspace.txt"), "original");
+    const opened = await manager.workspaceContent("workspace.txt");
+    const results = await Promise.allSettled([
+      manager.workspaceContent("workspace.txt", "first", opened.revision),
+      manager.workspaceContent("./workspace.txt", "second", opened.revision)
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled" && !r.value.conflict)).toHaveLength(1);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+    // A completed operation releases its lock.
+    expect((await manager.workspaceContent("workspace.txt")).text).toBe("first");
+  });
+
+  it("enforces traversal, binary, read/write size and revision boundaries", async () => {
+    const manager = new FileManager(sandbox.dirA, "utf-8");
+    await expect(manager.workspaceContent("../inst-b/secret.txt")).rejects.toThrow();
+    await expect(manager.workspaceContent(".")).rejects.toThrow();
+    await expect(manager.workspaceContent(path.join(sandbox.dirB, "secret.txt"))).rejects.toThrow();
+    if (linkOk) await expect(manager.workspaceContent("link/secret.txt")).rejects.toThrow();
+    fs.writeFileSync(path.join(sandbox.dirA, "binary.bin"), Buffer.from([0, 255, 0, 1]));
+    await expect(manager.workspaceContent("binary.bin")).rejects.toThrow();
+    fs.writeFileSync(path.join(sandbox.dirA, "large.txt"), "x".repeat(5 * 1024 * 1024 + 1));
+    await expect(manager.workspaceContent("large.txt")).rejects.toThrow();
+    fs.writeFileSync(path.join(sandbox.dirA, "workspace.txt"), "original");
+    const opened = await manager.workspaceContent("workspace.txt");
+    await expect(manager.workspaceContent("workspace.txt", "edit", "bad")).rejects.toThrow();
+    await expect(
+      manager.workspaceContent("workspace.txt", "x".repeat(5 * 1024 * 1024 + 1), opened.revision)
+    ).rejects.toThrow();
+    expect(fs.readFileSync(path.join(sandbox.dirA, "workspace.txt"), "utf8")).toBe("original");
+  });
+
+  it("preserves the configured GBK encoding and rejects unrepresentable text", async () => {
+    const manager = new FileManager(sandbox.dirA, "gbk");
+    const target = path.join(sandbox.dirA, "workspace-gbk.txt");
+    fs.writeFileSync(target, Buffer.from([0xd6, 0xd0, 0xce, 0xc4]));
+    const opened = await manager.workspaceContent("workspace-gbk.txt");
+    expect(opened.text).toBe("中文");
+    expect(
+      (await manager.workspaceContent("workspace-gbk.txt", "中文\r\n", opened.revision)).conflict
+    ).toBe(false);
+    const current = await manager.workspaceContent("workspace-gbk.txt");
+    await expect(
+      manager.workspaceContent("workspace-gbk.txt", "😀", current.revision)
+    ).rejects.toThrow();
+    expect((await manager.workspaceContent("workspace-gbk.txt")).text).toBe("中文\r\n");
+  });
+});
+
 // Dispatch through the full middleware chain and wait for the handler's
 // response packet. The real FileManager does actual fs/stream I/O which lands
 // on the thread pool — a single setImmediate is not enough — so poll until the

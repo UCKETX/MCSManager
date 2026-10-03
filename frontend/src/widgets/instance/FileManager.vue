@@ -2,6 +2,7 @@
 import BetweenMenus from "@/components/BetweenMenus.vue";
 import CardPanel from "@/components/CardPanel.vue";
 import { useDownloadFileDialog } from "@/components/fc";
+import { useAppRouters } from "@/hooks/useAppRouters";
 import { useLayoutCardTools } from "@/hooks/useCardTools";
 import { useFileManager } from "@/hooks/useFileManager";
 import { useRightClickMenu } from "@/hooks/useRightClickMenu";
@@ -16,6 +17,7 @@ import type { AntColumnsType } from "@/types/ant";
 import type { DataType } from "@/types/fileManager";
 import {
   CaretRightOutlined,
+  CodeOutlined,
   CloseOutlined,
   CopyOutlined,
   DeleteOutlined,
@@ -48,6 +50,17 @@ const instanceId = getMetaOrRouteValue("instanceId");
 const daemonId = getMetaOrRouteValue("daemonId");
 
 const { isPhone } = useScreen();
+const { toPage } = useAppRouters();
+const openWorkspace = (fileName?: string) =>
+  toPage({
+    path: "/instances/terminal/files/editor",
+    query: {
+      daemonId,
+      instanceId,
+      directory: currentPath.value,
+      file: fileName ? currentPath.value + fileName : undefined
+    }
+  });
 
 const {
   dialog,
@@ -322,6 +335,7 @@ const onFileSelect = (info: UploadChangeParam) => {
 };
 
 const editFile = (fileName: string) => {
+  if (!isPhone.value) return openWorkspace(fileName);
   const path = currentPath.value + fileName;
   FileEditorDialog.value?.openDialog(path, fileName);
 };
@@ -335,6 +349,13 @@ const handleClickFile = async (file: DataType) => {
 
 const menuList = (record: DataType) =>
   arrayFilter<ItemType & { style?: CSSProperties }>([
+    {
+      label: t("TXT_CODE_WORKSPACE_OPEN"),
+      key: "workspace",
+      icon: h(CodeOutlined),
+      onClick: () => openWorkspace(record.type === 0 ? undefined : record.name),
+      condition: () => !isMultiple.value && record.type !== 0
+    },
     {
       label: t("TXT_CODE_b147fabc"),
       key: "new",
@@ -528,6 +549,9 @@ onUnmounted(() => {
             </a-button>
             <a-button v-else type="default" @click="reloadList()">
               {{ t("TXT_CODE_a53573af") }}
+            </a-button>
+            <a-button type="default" @click="openWorkspace()">
+              <CodeOutlined />{{ t("TXT_CODE_WORKSPACE_TITLE") }}
             </a-button>
 
             <a-dropdown v-if="isMultiple">
